@@ -1,8 +1,8 @@
-#include <magisk.h>
+#include <logging.h>
+#include <flags.h>
+#include <magiskpolicy.h>
 
-#include "magiskpolicy.h"
 #include "sepolicy.h"
-#include "flags.h"
 
 static void allowSuClient(const char *target) {
 	if (!sepol_exists(target))
@@ -21,7 +21,7 @@ static void allowSuClient(const char *target) {
 	sepol_allow(target, "untrusted_app_devpts", "chr_file", "ioctl");
 	sepol_allow(target, "untrusted_app_25_devpts", "chr_file", "ioctl");
 	sepol_allow(target, "untrusted_app_all_devpts", "chr_file", "ioctl");
-	if (policydb->policyvers >= POLICYDB_VERSION_XPERMS_IOCTL) {
+	if (magisk_policydb->policyvers >= POLICYDB_VERSION_XPERMS_IOCTL) {
 		sepol_allowxperm(target, "devpts", "chr_file", "0x5400-0x54FF");
 		sepol_allowxperm(target, "untrusted_app_devpts", "chr_file", "0x5400-0x54FF");
 		sepol_allowxperm(target, "untrusted_app_25_devpts", "chr_file", "0x5400-0x54FF");
@@ -47,6 +47,12 @@ void sepol_magisk_rules() {
 	sepol_attradd(SEPOL_PROC_DOMAIN, "netdomain");
 	sepol_attradd(SEPOL_PROC_DOMAIN, "bluetoothdomain");
 	sepol_attradd(SEPOL_FILE_DOMAIN, "mlstrustedobject");
+
+	// Let everyone access tmpfs files (for SAR sbin overlay)
+	sepol_allow(ALL, "tmpfs", "file", ALL);
+
+	// For normal rootfs file/directory operations when rw (for SAR / overlay)
+	sepol_allow("rootfs", "labeledfs", "filesystem", "associate");
 
 	// Let init transit to SEPOL_PROC_DOMAIN
 	sepol_allow("kernel", "kernel", "process", "setcurrent");
@@ -148,6 +154,7 @@ void sepol_magisk_rules() {
 	sepol_allow(SEPOL_PROC_DOMAIN, "tmpfs", "filesystem", "mount");
 	sepol_allow(SEPOL_PROC_DOMAIN, "tmpfs", "filesystem", "unmount");
 	sepol_allow("kernel", ALL, "file", "read");
+	sepol_allow("kernel", ALL, "file", "write");
 
 	// Allow us to do anything to any files/dir/links
 	sepol_allow(SEPOL_PROC_DOMAIN, ALL, "file", ALL);
@@ -159,7 +166,7 @@ void sepol_magisk_rules() {
 	sepol_allow(SEPOL_PROC_DOMAIN, ALL, "fifo_file", ALL);
 
 	// Allow us to do any ioctl on all block devices
-	if (policydb->policyvers >= POLICYDB_VERSION_XPERMS_IOCTL)
+	if (magisk_policydb->policyvers >= POLICYDB_VERSION_XPERMS_IOCTL)
 		sepol_allowxperm(SEPOL_PROC_DOMAIN, ALL, "blk_file", "0x0000-0xFFFF");
 
 	// Allow all binder transactions
@@ -185,17 +192,13 @@ void sepol_magisk_rules() {
 	// Support deodexed ROM on Pie (Samsung)
 	sepol_allow("system_server", "dalvikcache_data_file", "file", "write");
 	sepol_allow("system_server", "dalvikcache_data_file", "file", "execute");
-	
-	// Allow update engine to source addon.d.sh
-	sepol_allow("update_engine", "adb_data_file", "dir", ALL);
 
-#ifdef MAGISK_DEBUG
+	// Allow update_engine/addon.d-v2 to run permissive on all ROMs
+	sepol_permissive("update_engine");
+
+#if 0
 	// Remove all dontaudit in debug mode
-	avtab_ptr_t av;
-	avtab_for_each(&policydb->te_avtab, av, {
-		if (av->key.specified == AVTAB_AUDITDENY || av->key.specified == AVTAB_XPERMS_DONTAUDIT)
-			avtab_remove_node(&policydb->te_avtab, av);
-	})
+	strip_dontaudit();
 #endif
 
 	log_cb.w = bak;

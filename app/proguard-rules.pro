@@ -16,16 +16,10 @@
 #   public *;
 #}
 
-# BouncyCastle
--keep,allowoptimization class org.bouncycastle.jcajce.provider.asymmetric.rsa.**SHA1** { *; }
--keep,allowoptimization class org.bouncycastle.jcajce.provider.asymmetric.RSA** { *; }
--keep,allowoptimization class org.bouncycastle.jcajce.provider.digest.SHA1** { *; }
--dontwarn javax.naming.**
-
 # Snet
--keepclassmembers class com.topjohnwu.magisk.utils.ISafetyNetHelper { *; }
--keep,allowobfuscation interface com.topjohnwu.magisk.utils.ISafetyNetHelper$Callback
--keepclassmembers class * implements com.topjohnwu.magisk.utils.ISafetyNetHelper$Callback {
+-keepclassmembers class com.topjohnwu.magisk.utils.SafetyNetHelper { *; }
+-keep,allowobfuscation interface com.topjohnwu.magisk.utils.SafetyNetHelper$Callback
+-keepclassmembers class * implements com.topjohnwu.magisk.utils.SafetyNetHelper$Callback {
   void onResponse(int);
 }
 
@@ -35,21 +29,17 @@
 }
 
 # DelegateWorker
--keep,allowobfuscation class * extends com.topjohnwu.magisk.model.worker.DelegateWorker
+-keep,allowobfuscation class * extends com.topjohnwu.magisk.base.DelegateWorker
 
 # BootSigner
--keepclassmembers class com.topjohnwu.signing.BootSigner { *; }
+-keep class a.a { *; }
 
-# SVG
--dontwarn com.caverock.androidsvg.SVGAndroidRenderer
-
-# RetroStreams
--dontwarn java9.**
+# Workaround R8 bug
+-keep,allowobfuscation class com.topjohnwu.magisk.model.receiver.GeneralReceiver
+-keepclassmembers class a.e { *; }
 
 # Strip logging
--assumenosideeffects class com.topjohnwu.magisk.utils.Logger {
-  public *** debug(...);
-}
+-assumenosideeffects class timber.log.Timber.Tree { *; }
 
 # Excessive obfuscation
 -repackageclasses 'a'

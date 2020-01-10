@@ -8,7 +8,6 @@
     <string name="settings">Setări</string>
     <string name="install">Instalează</string>
     <string name="unsupport_magisk_title">Versiune Magisk nesuportată</string>
-    <string name="unsupport_magisk_message">Această versiune de Magisk Manager nu suportă versiunea Magisk mai mică de v18.0.\n\nPoți fie să actualizezi manual Magisk, fie să treci la o versiune mai veche.</string>
 
     <!--Status Fragment-->
     <string name="magisk_version_error">Magisk nu este instalat.</string>
@@ -44,6 +43,7 @@
     <string name="reboot_recovery">Repornește în recovery</string>
     <string name="reboot_bootloader">Repornește în bootloader</string>
     <string name="reboot_download">Repornește în download</string>
+    <string name="reboot_edl">Repornește în EDL</string>
 
     <!--Repo Fragment-->
     <string name="update_available">Actualizare disponibilă</string>
@@ -59,18 +59,17 @@
     <string name="menuReload">Reîncarcă</string>
     <string name="menuClearLog">Golește jurnalul acum</string>
     <string name="logs_cleared">Jurnal golit cu succes.</string>
-    <string name="log_is_empty">Jurnalul este gol.</string>
 
     <!--About Activity-->
     <string name="app_changelog">Jurnalul modificărilor</string>
-    <string name="translators" />
-    <string name="app_translators">Traducători</string>
 
     <!-- System Components, Notifications -->
     <string name="update_channel">Actualizări Magisk</string>
     <string name="progress_channel">Notificări de progres</string>
     <string name="download_complete">Descărcare finalizată</string>
     <string name="download_file_error">Eroare la descărcarea fișierului</string>
+    <string name="download_open_parent">Afișează în dosarul părinte</string>
+    <string name="download_open_self">Afișează fișierul</string>
     <string name="magisk_update_title">Actualizare Magisk disponibilă!</string>
     <string name="manager_update_title">Actualizare Magisk Manager disponibilă!</string>
 
@@ -87,18 +86,19 @@
     <string name="reboot_delay_toast">Repornire în 5 secunde…</string>
 
     <!--Toasts, Dialogs-->
-    <string name="close">Închide</string>
     <string name="repo_install_title">Instalează %1$s</string>
     <string name="repo_install_msg">Vrei să instalezi acum %1$s?</string>
     <string name="download">Descarcă</string>
     <string name="reboot">Repornește</string>
     <string name="settings_reboot_toast">Repornește pentru a aplica setările.</string>
     <string name="release_notes">Note privind versiunea</string>
-    <string name="repo_cache_cleared">Cache-ul depozitului golit</string>
-    <string name="internal_storage">Zip-ul este stocat în:\n[Stocare internă]%1$s</string>
+    <string name="repo_cache_cleared">Cache-ul depozitelor golit</string>
+
     <string name="dtbo_patched_title">DTBO a fost patchuit!</string>
     <string name="dtbo_patched_reboot">Magisk Manager a patchuit dtbo.img. Te rugăm să repornești.</string>
-    <string name="flashing">Se procesează</string>
+    <string name="flashing">Procesare în curs…</string>
+    <string name="done">Terminat!</string>
+    <string name="failure">Eșec</string>
     <string name="hide_manager_title">Se ascunde Magisk Manager…</string>
     <string name="hide_manager_fail_toast">Ascunderea Magisk Manager a eșuat.</string>
     <string name="open_link_failed_toast">Nu a fost găsită nicio aplicație pentru a deschide linkul.</string>
@@ -114,14 +114,13 @@
     <string name="env_fix_title">Necesită configurare suplimentară</string>
     <string name="env_fix_msg">Dispozitivul tău are nevoie de configurări suplimentare pentru ca Magisk să funcționeze corect. Se va descărca zip-ul de configurare Magisk, vrei să continui acum?</string>
     <string name="setup_msg">Rulează configurarea mediului…</string>
-    <string name="downloading_toast">Se descarcă %1$s</string>
-    <string name="no_rw_storage">Această caracteristică nu va funcționa fără permisiunea de a scrie în stocarea externă.</string>
-    <string name="dl_one_module">Descarcă câte un modul odată.</string>
 
     <!--Settings Activity -->
     <string name="settings_general_category">General</string>
     <string name="settings_dark_theme_title">Temă întunecată</string>
     <string name="settings_dark_theme_summary">Activează tema întunecată.</string>
+    <string name="settings_download_path_title">Cale de descărcare</string>
+    <string name="settings_download_path_message">Fișierele vor fi salvate în %1$s</string>
     <string name="settings_clear_cache_title">Golește cache-ul depozitelor</string>
     <string name="settings_clear_cache_summary">Golește informațiile memorate în cache pentru depozitele online. Acest lucru forțează actualizarea aplicației online.</string>
     <string name="settings_hide_manager_title">Ascunde Magisk Manager</string>
@@ -139,7 +138,7 @@
     <string name="settings_update_custom">Personalizat</string>
     <string name="settings_update_custom_msg">Inserează un URL personalizat</string>
     <string name="settings_core_only_title">Mod numai de bază pentru Magisk</string>
-    <string name="settings_core_only_summary">Activează numai caracteristicile de bază. MagiskSU și MagiskHide vor fi în continuare activate, însă niciun modul nu va fi încărcat.</string>
+    <string name="settings_core_only_summary">Activează numai funcțiile de bază. MagiskSU și MagiskHide vor fi în continuare activate, însă niciun modul nu va fi încărcat.</string>
     <string name="settings_magiskhide_summary">Ascunde Magisk de diferite forme de detectare.</string>
     <string name="settings_hosts_title">Systemless hosts</string>
     <string name="settings_hosts_summary">Suport systemless hosts pentru aplicațiile adblock.</string>
@@ -162,9 +161,6 @@
     <string name="request_timeout_summary">%1$d secunde</string>
     <string name="settings_su_reauth_title">Reautentificare după actualizare</string>
     <string name="settings_su_reauth_summary">Reautentifică permisiunile pentru superutilizator după o actualizare a aplicației</string>
-    <string name="settings_su_fingerprint_title">Activează autentificarea cu amprenta</string>
-    <string name="settings_su_fingerprint_summary">Folosește scannerul de amprente pentru a permite solicitările de superutilizator</string>
-    <string name="auth_fingerprint">Autentifică amprenta</string>
 
     <string name="multiuser_mode">Mod de multiutilizator</string>
     <string name="settings_owner_only">Numai proprietarul dispozitivului</string>
@@ -181,12 +177,10 @@
     <string name="global_summary">Toate sesiunile de root folosesc spațiul de nume global.</string>
     <string name="requester_summary">Sesiunile de root vor moșteni spațiul de nume al solicitantului.</string>
     <string name="isolate_summary">Fiecare sesiune de root va avea propriul spațiu de nume izolat.</string>
-    <string name="android_o_not_support">Nu suportă Android 8.0+.</string>
-    <string name="disable_fingerprint">Nu au fost setate amprente sau scannerul de amprentă lipsește.</string>
+    <string name="settings_download_path_error">Eroare la crearea dosarului. Acesta trebuie să fie accesibil din directorul rădăcină al stocării și nu trebuie să fie un fișier.</string>
 
     <!--Superuser-->
     <string name="su_request_title">Solicitare de superutilizator</string>
-    <string name="deny_with_str">Refuză %1$s</string>
     <string name="deny">Refuză</string>
     <string name="prompt">Solicitare</string>
     <string name="grant">Permite</string>
@@ -206,12 +200,10 @@
     <string name="su_snack_notif_off">Notificările pentru %1$s au fost dezactivate</string>
     <string name="su_snack_log_on">Jurnalizarea pentru %1$s a fost activată</string>
     <string name="su_snack_log_off">Jurnalizarea pentru %1$s a fost dezactivată</string>
-    <string name="su_snack_revoke">Drepturile pentru %1$s sunt revocate</string>
     <string name="su_revoke_title">Revoci?</string>
     <string name="su_revoke_msg">Confirmi revocarea drepturilor pentru %1$s?</string>
     <string name="toast">Mesaj</string>
     <string name="none">Nimic</string>
-    <string name="auth_fail">Autentificare eșuată</string>
 
     <!--Superuser logs-->
     <string name="pid">PID: %1$d</string>

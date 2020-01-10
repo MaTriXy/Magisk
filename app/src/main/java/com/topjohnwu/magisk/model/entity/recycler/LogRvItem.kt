@@ -1,12 +1,14 @@
 package com.topjohnwu.magisk.model.entity.recycler
 
-import androidx.databinding.ObservableList
-import com.skoumal.teanity.databinding.ComparableRvItem
-import com.skoumal.teanity.util.DiffObservableList
-import com.skoumal.teanity.util.KObservableField
 import com.topjohnwu.magisk.R
-import com.topjohnwu.magisk.model.entity.SuLogEntry
-import com.topjohnwu.magisk.utils.toggle
+import com.topjohnwu.magisk.databinding.ComparableRvItem
+import com.topjohnwu.magisk.extensions.timeFormatMedium
+import com.topjohnwu.magisk.extensions.toTime
+import com.topjohnwu.magisk.extensions.toggle
+import com.topjohnwu.magisk.model.entity.MagiskLog
+import com.topjohnwu.magisk.model.entity.WrappedMagiskLog
+import com.topjohnwu.magisk.utils.DiffObservableList
+import com.topjohnwu.magisk.utils.KObservableField
 
 class LogRvItem : ComparableRvItem<LogRvItem>() {
     override val layoutRes: Int = R.layout.item_page_log
@@ -25,36 +27,32 @@ class LogRvItem : ComparableRvItem<LogRvItem>() {
 }
 
 class LogItemRvItem(
-    val items: ObservableList<ComparableRvItem<*>>
+    item: WrappedMagiskLog
 ) : ComparableRvItem<LogItemRvItem>() {
     override val layoutRes: Int = R.layout.item_superuser_log
 
-    val date = items.filterIsInstance<LogItemEntryRvItem>().firstOrNull()
-        ?.item?.dateString.orEmpty()
+    val date = item.time.toTime(timeFormatMedium)
+    val items: List<ComparableRvItem<*>> = item.items.map { LogItemEntryRvItem(it) }
     val isExpanded = KObservableField(false)
 
     fun toggle() = isExpanded.toggle()
 
-    override fun contentSameAs(other: LogItemRvItem): Boolean = items
-        .any { !other.items.contains(it) }
+    override fun contentSameAs(other: LogItemRvItem): Boolean {
+        if (items.size != other.items.size) return false
+        return items.all { it in other.items }
+    }
 
     override fun itemSameAs(other: LogItemRvItem): Boolean = date == other.date
 }
 
-class LogItemEntryRvItem(val item: SuLogEntry) : ComparableRvItem<LogItemEntryRvItem>() {
+class LogItemEntryRvItem(val item: MagiskLog) : ComparableRvItem<LogItemEntryRvItem>() {
     override val layoutRes: Int = R.layout.item_superuser_log_entry
 
     val isExpanded = KObservableField(false)
 
     fun toggle() = isExpanded.toggle()
 
-    override fun contentSameAs(other: LogItemEntryRvItem) = item.fromUid == other.item.fromUid &&
-            item.toUid == other.item.toUid &&
-            item.fromPid == other.item.fromPid &&
-            item.packageName == other.item.packageName &&
-            item.command == other.item.command &&
-            item.action == other.item.action &&
-            item.date == other.item.date
+    override fun contentSameAs(other: LogItemEntryRvItem) = item == other.item
 
     override fun itemSameAs(other: LogItemEntryRvItem) = item.appName == other.item.appName
 }

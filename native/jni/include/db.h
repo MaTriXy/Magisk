@@ -154,8 +154,9 @@ typedef std::function<bool(db_row&)> db_row_cb;
 
 int get_db_settings(db_settings &cfg, int key = -1);
 int get_db_strings(db_strings &str, int key = -1);
-int get_uid_policy(int uid, su_access &su);
-int validate_manager(std::string &alt_pkg, int userid, struct stat *st);
+int get_uid_policy(su_access &su, int uid);
+bool check_manager(std::string *pkg = nullptr);
+bool validate_manager(std::string &pkg, int userid, struct stat *st);
 void exec_sql(int client);
 char *db_exec(const char *sql);
 char *db_exec(const char *sql, const db_row_cb &fn);

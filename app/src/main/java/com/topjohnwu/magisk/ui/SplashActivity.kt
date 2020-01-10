@@ -1,46 +1,33 @@
 package com.topjohnwu.magisk.ui
 
-import android.content.Intent
+import android.app.Activity
+import android.content.Context
 import android.os.Bundle
-import android.text.TextUtils
-import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
 import com.topjohnwu.magisk.*
-import com.topjohnwu.magisk.tasks.CheckUpdates
-import com.topjohnwu.magisk.tasks.UpdateRepos
-import com.topjohnwu.magisk.utils.LocaleManager
 import com.topjohnwu.magisk.utils.Utils
 import com.topjohnwu.magisk.view.Notifications
 import com.topjohnwu.magisk.view.Shortcuts
-import com.topjohnwu.net.Networking
 import com.topjohnwu.superuser.Shell
+import com.topjohnwu.superuser.ShellUtils
 
-open class SplashActivity : AppCompatActivity() {
+open class SplashActivity : Activity() {
+
+    override fun attachBaseContext(base: Context) {
+        super.attachBaseContext(base.wrap())
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        Shell.getShell {
-            if (Config.magiskVersionCode > 0 && Config.magiskVersionCode < Const.MAGISK_VER.MIN_SUPPORT) {
-                AlertDialog.Builder(this)
-                    .setTitle(R.string.unsupport_magisk_title)
-                    .setMessage(R.string.unsupport_magisk_message)
-                    .setNegativeButton(R.string.ok, null)
-                    .setOnDismissListener { finish() }
-                    .show()
-            } else {
-                initAndStart()
-            }
-        }
+        Shell.getShell { initAndStart() }
     }
 
     private fun initAndStart() {
-        val pkg = Config.get<String>(Config.Key.SU_MANAGER)
-        if (pkg != null && packageName == BuildConfig.APPLICATION_ID) {
-            Config.remove(Config.Key.SU_MANAGER)
+        val pkg = Config.suManager
+        if (Config.suManager.isNotEmpty() && packageName == BuildConfig.APPLICATION_ID) {
+            Config.suManager = ""
             Shell.su("pm uninstall $pkg").submit()
         }
-        if (TextUtils.equals(pkg, packageName)) {
+        if (pkg == packageName) {
             runCatching {
                 // We are the manager, remove com.topjohnwu.magisk as it could be malware
                 packageManager.getApplicationInfo(BuildConfig.APPLICATION_ID, 0)
@@ -48,8 +35,9 @@ open class SplashActivity : AppCompatActivity() {
             }
         }
 
-        // Dynamic detect all locales
-        LocaleManager.loadAvailableLocales(R.string.app_changelog)
+        Info.keepVerity = ShellUtils.fastCmd("echo \$KEEPVERITY").toBoolean()
+        Info.keepEnc = ShellUtils.fastCmd("echo \$KEEPFORCEENCRYPT").toBoolean()
+        Info.recovery = ShellUtils.fastCmd("echo \$RECOVERYMODE").toBoolean()
 
         // Set default configs
         Config.initialize()
@@ -58,25 +46,23 @@ open class SplashActivity : AppCompatActivity() {
         Notifications.setup(this)
 
         // Schedule periodic update checks
-        Utils.scheduleUpdateCheck()
-        CheckUpdates.check()
+        Utils.scheduleUpdateCheck(this)
 
         // Setup shortcuts
         Shortcuts.setup(this)
 
-        // Magisk working as expected
-        if (Shell.rootAccess() && Config.magiskVersionCode > 0) {
-            // Load modules
-            Utils.loadModules(false)
-            // Load repos
-            if (Networking.checkNetworkStatus(this))
-                UpdateRepos().exec()
+        if (Info.isNewReboot) {
+            val shell = Shell.newInstance()
+            shell.newJob().add("mm_patch_dtb").submit {
+                if (it.isSuccess)
+                    Notifications.dtboPatched(this)
+                shell.close()
+            }
         }
 
-        val intent = Intent(this, ClassMap.get<Any>(MainActivity::class.java))
-        intent.putExtra(Const.Key.OPEN_SECTION, getIntent().getStringExtra(Const.Key.OPEN_SECTION))
         DONE = true
-        startActivity(intent)
+
+        startActivity(intent<MainActivity>().apply { intent?.also { putExtras(it) } })
         finish()
     }
 

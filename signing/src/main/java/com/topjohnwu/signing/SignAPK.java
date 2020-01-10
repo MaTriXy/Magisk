@@ -11,7 +11,6 @@ import org.bouncycastle.cms.CMSSignedData;
 import org.bouncycastle.cms.CMSSignedDataGenerator;
 import org.bouncycastle.cms.CMSTypedData;
 import org.bouncycastle.cms.jcajce.JcaSignerInfoGeneratorBuilder;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
@@ -31,11 +30,8 @@ import java.io.PrintStream;
 import java.io.RandomAccessFile;
 import java.security.DigestOutputStream;
 import java.security.GeneralSecurityException;
-import java.security.KeyStore;
 import java.security.MessageDigest;
 import java.security.PrivateKey;
-import java.security.Provider;
-import java.security.Security;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
@@ -60,39 +56,12 @@ public class SignAPK {
     private static final String CERT_SF_NAME = "META-INF/CERT.SF";
     private static final String CERT_SIG_NAME = "META-INF/CERT.%s";
 
-    private static Provider sBouncyCastleProvider;
     // bitmasks for which hash algorithms we need the manifest to include.
     private static final int USE_SHA1 = 1;
     private static final int USE_SHA256 = 2;
 
-    static {
-        sBouncyCastleProvider = new BouncyCastleProvider();
-        Security.insertProviderAt(sBouncyCastleProvider, 1);
-    }
-
-    public static void sign(JarMap input, OutputStream output) throws Exception {
-        sign(SignAPK.class.getResourceAsStream("/keys/testkey.x509.pem"),
-             SignAPK.class.getResourceAsStream("/keys/testkey.pk8"), input, output);
-    }
-
-    public static void sign(InputStream certIs, InputStream keyIs,
-                            JarMap input, OutputStream output) throws Exception {
-        X509Certificate cert = CryptoUtils.readCertificate(certIs);
-        PrivateKey key = CryptoUtils.readPrivateKey(keyIs);
-        sign(cert, key, input, output);
-    }
-
-    public static void sign(InputStream jks, String keyStorePass, String alias, String keyPass,
-                            JarMap input, OutputStream output) throws Exception {
-        KeyStore ks = KeyStore.getInstance("JKS");
-        ks.load(jks, keyStorePass.toCharArray());
-        X509Certificate cert = (X509Certificate) ks.getCertificate(alias);
-        PrivateKey key = (PrivateKey) ks.getKey(alias, keyPass.toCharArray());
-        sign(cert, key, input, output);
-    }
-
-    private static void sign(X509Certificate cert, PrivateKey key,
-                             JarMap input, OutputStream output) throws Exception {
+    public static void signAndAdjust(X509Certificate cert, PrivateKey key,
+                                     JarMap input, OutputStream output) throws Exception {
         File temp1 = File.createTempFile("signAPK", null);
         File temp2 = File.createTempFile("signAPK", null);
 
@@ -103,13 +72,18 @@ public class SignAPK {
 
             ZipAdjust.adjust(temp1, temp2);
 
-            try (JarMap map = new JarMap(temp2, false)) {
+            try (JarMap map = JarMap.open(temp2, false)) {
                 sign(cert, key, map, output, true);
             }
         } finally {
             temp1.delete();
             temp2.delete();
         }
+    }
+
+    public static void sign(X509Certificate cert, PrivateKey key,
+                            JarMap input, OutputStream output) throws Exception {
+        sign(cert, key, input, output, false);
     }
 
     private static void sign(X509Certificate cert, PrivateKey key,
@@ -146,8 +120,7 @@ public class SignAPK {
      */
     private static int getDigestAlgorithm(X509Certificate cert) {
         String sigAlg = cert.getSigAlgName().toUpperCase(Locale.US);
-        if ("SHA1WITHRSA".equals(sigAlg) ||
-                "MD5WITHRSA".equals(sigAlg)) {     // see "HISTORICAL NOTE" above.
+        if (sigAlg.startsWith("SHA1WITHRSA") || sigAlg.startsWith("MD5WITHRSA")) {
             return USE_SHA1;
         } else if (sigAlg.startsWith("SHA256WITH")) {
             return USE_SHA256;
@@ -315,13 +288,10 @@ public class SignAPK {
         JcaCertStore certs = new JcaCertStore(certList);
         CMSSignedDataGenerator gen = new CMSSignedDataGenerator();
         ContentSigner signer = new JcaContentSignerBuilder(getSignatureAlgorithm(publicKey))
-                .setProvider(sBouncyCastleProvider)
                 .build(privateKey);
         gen.addSignerInfoGenerator(
                 new JcaSignerInfoGeneratorBuilder(
-                        new JcaDigestCalculatorProviderBuilder()
-                                .setProvider(sBouncyCastleProvider)
-                                .build())
+                        new JcaDigestCalculatorProviderBuilder().build())
                         .setDirectSignature(true)
                         .build(signer, publicKey));
         gen.addCertificates(certs);
@@ -511,11 +481,11 @@ public class SignAPK {
         outputStream.close();
     }
     private static void signFile(Manifest manifest, JarMap inputJar,
-                                 X509Certificate publicKey, PrivateKey privateKey,
+                                 X509Certificate cert, PrivateKey privateKey,
                                  JarOutputStream outputJar)
             throws Exception {
         // Assume the certificate is valid for at least an hour.
-        long timestamp = publicKey.getNotBefore().getTime() + 3600L * 1000;
+        long timestamp = cert.getNotBefore().getTime() + 3600L * 1000;
         // MANIFEST.MF
         JarEntry je = new JarEntry(JarFile.MANIFEST_NAME);
         je.setTime(timestamp);
@@ -525,15 +495,15 @@ public class SignAPK {
         je.setTime(timestamp);
         outputJar.putNextEntry(je);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        writeSignatureFile(manifest, baos, getDigestAlgorithm(publicKey));
+        writeSignatureFile(manifest, baos, getDigestAlgorithm(cert));
         byte[] signedData = baos.toByteArray();
         outputJar.write(signedData);
         // CERT.{EC,RSA} / CERT#.{EC,RSA}
-        final String keyType = publicKey.getPublicKey().getAlgorithm();
+        final String keyType = cert.getPublicKey().getAlgorithm();
         je = new JarEntry(String.format(CERT_SIG_NAME, keyType));
         je.setTime(timestamp);
         outputJar.putNextEntry(je);
         writeSignatureBlock(new CMSProcessableByteArray(signedData),
-                publicKey, privateKey, outputJar);
+                cert, privateKey, outputJar);
     }
 }

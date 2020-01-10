@@ -12,7 +12,6 @@ import org.bouncycastle.asn1.DEROctetString;
 import org.bouncycastle.asn1.DERPrintableString;
 import org.bouncycastle.asn1.DERSequence;
 import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 import java.io.ByteArrayInputStream;
 import java.io.FilterInputStream;
@@ -23,7 +22,6 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.security.Security;
 import java.security.Signature;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateFactory;
@@ -32,9 +30,14 @@ import java.util.Arrays;
 
 public class SignBoot {
 
-    static {
-        Security.addProvider(new BouncyCastleProvider());
-    }
+    private static final int BOOT_IMAGE_HEADER_V1_RECOVERY_DTBO_SIZE_OFFSET = 1632;
+    private static final int BOOT_IMAGE_HEADER_V2_DTB_SIZE_OFFSET = 1648;
+
+    // Arbitrary maximum header version value; when greater assume the field is dt/extra size
+    private static final int BOOT_IMAGE_HEADER_VERSION_MAXIMUM = 8;
+
+    // Maximum header size byte value to read (currently the bootimg minimum page size)
+    private static final int BOOT_IMAGE_HEADER_SIZE_MAXIMUM = 2048;
 
     private static class PushBackRWStream extends FilterInputStream {
         private OutputStream out;
@@ -85,7 +88,7 @@ public class SignBoot {
                                       InputStream cert, InputStream key) {
         try {
             PushBackRWStream in = new PushBackRWStream(imgIn, imgOut);
-            byte[] hdr = new byte[1024];
+            byte[] hdr = new byte[BOOT_IMAGE_HEADER_SIZE_MAXIMUM];
             // First read the header
             in.read(hdr);
             int signableSize = getSignableImageSize(hdr);
@@ -93,12 +96,12 @@ public class SignBoot {
             in.unread(hdr);
             BootSignature bootsig = new BootSignature(target, signableSize);
             if (cert == null) {
-                cert = SignBoot.class.getResourceAsStream("/keys/testkey.x509.pem");
+                cert = SignBoot.class.getResourceAsStream("/keys/verity.x509.pem");
             }
             X509Certificate certificate = CryptoUtils.readCertificate(cert);
             bootsig.setCertificate(certificate);
             if (key == null) {
-                key = SignBoot.class.getResourceAsStream("/keys/testkey.pk8");
+                key = SignBoot.class.getResourceAsStream("/keys/verity.pk8");
             }
             PrivateKey privateKey = CryptoUtils.readPrivateKey(key);
             byte[] sig = bootsig.sign(privateKey, in, signableSize);
@@ -116,22 +119,27 @@ public class SignBoot {
     public static boolean verifySignature(InputStream imgIn, InputStream certIn) {
         try {
             // Read the header for size
-            byte[] hdr = new byte[1024];
-            if (imgIn.read(hdr) != hdr.length)
+            byte[] hdr = new byte[BOOT_IMAGE_HEADER_SIZE_MAXIMUM];
+            if (imgIn.read(hdr) != hdr.length) {
+                System.err.println("Unable to read image header");
                 return false;
+            }
             int signableSize = getSignableImageSize(hdr);
 
             // Read the rest of the image
             byte[] rawImg = Arrays.copyOf(hdr, signableSize);
             int remain = signableSize - hdr.length;
             if (imgIn.read(rawImg, hdr.length, remain) != remain) {
-                System.err.println("Invalid image: not signed");
+                System.err.println("Unable to read image");
                 return false;
             }
 
             // Read footer, which contains the signature
             byte[] signature = new byte[4096];
-            imgIn.read(signature);
+            if (imgIn.read(signature) == -1 || Arrays.equals(signature, new byte [signature.length])) {
+                System.err.println("Invalid image: not signed");
+                return false;
+            }
 
             BootSignature bootsig = new BootSignature(signature);
             if (certIn != null) {
@@ -144,7 +152,8 @@ public class SignBoot {
                 System.err.println("Signature is INVALID");
             }
         } catch (Exception e) {
-            System.err.println("Invalid image: not signed");
+            e.printStackTrace();
+            return false;
         }
         return false;
     }
@@ -168,6 +177,27 @@ public class SignBoot {
                 + ((kernelSize + pageSize - 1) / pageSize) * pageSize
                 + ((ramdskSize + pageSize - 1) / pageSize) * pageSize
                 + ((secondSize + pageSize - 1) / pageSize) * pageSize;
+        int headerVersion = image.getInt(); // boot image header version or dt/extra size
+        if (headerVersion > 0 && headerVersion < BOOT_IMAGE_HEADER_VERSION_MAXIMUM) {
+            image.position(BOOT_IMAGE_HEADER_V1_RECOVERY_DTBO_SIZE_OFFSET);
+            int recoveryDtboLength = image.getInt();
+            length += ((recoveryDtboLength + pageSize - 1) / pageSize) * pageSize;
+            image.getLong(); // recovery_dtbo address
+            int headerSize = image.getInt();
+            if (headerVersion == 2) {
+                image.position(BOOT_IMAGE_HEADER_V2_DTB_SIZE_OFFSET);
+                int dtbLength = image.getInt();
+                length += ((dtbLength + pageSize - 1) / pageSize) * pageSize;
+                image.getLong(); // dtb address
+            }
+            if (image.position() != headerSize) {
+                throw new IllegalArgumentException(
+                        "Invalid image header: invalid header length");
+            }
+        } else {
+            // headerVersion is 0 or actually dt/extra size in this case
+            length += ((headerVersion + pageSize - 1) / pageSize) * pageSize;
+        }
         length = ((length + pageSize - 1) / pageSize) * pageSize;
         if (length <= 0) {
             throw new IllegalArgumentException("Invalid image header: invalid length");

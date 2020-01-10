@@ -17,7 +17,7 @@ enum {
 	BOOT_COMPLETE,
 	MAGISKHIDE,
 	SQLITE_CMD,
-	ZYGOTE_NOTIFY,
+	REMOVE_MODULES,
 };
 
 // Return codes for daemon
@@ -28,12 +28,11 @@ enum {
 	DAEMON_LAST
 };
 
-// daemon.c
+// daemon.cpp
 
 int connect_daemon(bool create = false);
-int switch_mnt_ns(int pid);
 
-// socket.c
+// socket.cpp
 
 socklen_t setup_sockaddr(struct sockaddr_un *sun, const char *name);
 int create_rand_socket(struct sockaddr_un *sun);
@@ -60,6 +59,7 @@ void unlock_blocks();
 void post_fs_data(int client);
 void late_start(int client);
 void boot_complete(int client);
+void remove_modules();
 
 /*************
  * Scripting *
@@ -68,7 +68,6 @@ void boot_complete(int client);
 void exec_script(const char *script);
 void exec_common_script(const char *stage);
 void exec_module_script(const char *stage, const std::vector<std::string> &module_list);
-void migrate_img(const char *img);
 void install_apk(const char *apk);
 
 /**************
@@ -83,5 +82,10 @@ void magiskhide_handler(int client);
 
 void su_daemon_handler(int client, struct ucred *credential);
 
+/*********************
+ * Daemon Global Vars
+ *********************/
+
 extern int SDK_INT;
 extern bool RECOVERY_MODE;
+#define APP_DATA_DIR (SDK_INT >= 24 ? "/data/user_de" : "/data/user")

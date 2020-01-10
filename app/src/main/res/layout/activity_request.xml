@@ -89,15 +89,12 @@
 
         <androidx.appcompat.widget.AppCompatSpinner
             android:id="@+id/timeout"
-            itemBinding="@{viewModel.itemBinding}"
-            items="@{viewModel.items}"
             onTouch="@{() -> viewModel.spinnerTouched()}"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
-            android:selectedItemPosition="@={viewModel.selectedItemPosition}" />
-        itemDropDownLayout="@{android.R.layout.simple_spinner_dropdown_item}"
-        android:onClick="@{() -> viewModel.spinnerPressed()}"
+            android:adapter="@{viewModel.adapter}"
+            android:selection="@={viewModel.selectedItemPosition}" />
 
         <androidx.appcompat.widget.AppCompatTextView
             android:id="@+id/warning"
@@ -132,22 +129,12 @@
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/grant_btn"
                 style="@style/Widget.Button.Text"
-                gone="@{viewModel.canUseFingerprint}"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:onClick="@{() -> viewModel.grantPressed()}"
                 android:text="@string/grant" />
 
-            <androidx.appcompat.widget.AppCompatImageView
-                android:id="@+id/fingerprint"
-                gone="@{!viewModel.canUseFingerprint}"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:padding="7dp"
-                android:tint="?attr/colorAccent"
-                app:srcCompat="@drawable/ic_fingerprint" />
         </LinearLayout>
 
     </LinearLayout>
